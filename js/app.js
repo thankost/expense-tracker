@@ -5,21 +5,21 @@ import * as lock from './lock.js';
 import { toCSV, shareOrDownload } from './export.js';
 
 const LOCK_AFTER_MS = 60_000;
-const COLORS = ['#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#00c7be', '#30b0c7', '#007aff', '#5e5ce6', '#af52de', '#ff2d55', '#a2845e', '#8e8e93'];
+const COLORS = ['#e5484d', '#f76b15', '#f5b300', '#30a46c', '#12a594', '#0d9fbf', '#0090ff', '#3e63dd', '#8e4ec6', '#d6409f', '#ad7f58', '#8b8d98'];
 const DEFAULT_CATEGORIES = {
   income: [
-    ['Salary', '💼', '#34c759', []],
-    ['Bonus', '🎁', '#30b0c7', []],
-    ['Other income', '💰', '#00c7be', []],
+    ['Salary', '💼', '#30a46c', []],
+    ['Bonus', '🎁', '#0d9fbf', []],
+    ['Other income', '💰', '#12a594', []],
   ],
   expense: [
-    ['Home', '🏠', '#5e5ce6', [['Rent', '🔑'], ['Utilities', '💡']]],
-    ['Food', '🍽️', '#ff9500', [['Groceries', '🛒'], ['Restaurants', '🍔']]],
-    ['Transport', '🚗', '#007aff', [['Fuel', '⛽'], ['Public transport', '🚌']]],
-    ['Health', '🩺', '#ff2d55', []],
-    ['Entertainment', '🎬', '#af52de', []],
-    ['Shopping', '🛍️', '#ffcc00', []],
-    ['Other', '📦', '#8e8e93', []],
+    ['Home', '🏠', '#3e63dd', [['Rent', '🔑'], ['Utilities', '💡']]],
+    ['Food', '🍽️', '#f76b15', [['Groceries', '🛒'], ['Restaurants', '🍔']]],
+    ['Transport', '🚗', '#0090ff', [['Fuel', '⛽'], ['Public transport', '🚌']]],
+    ['Health', '🩺', '#d6409f', []],
+    ['Entertainment', '🎬', '#8e4ec6', []],
+    ['Shopping', '🛍️', '#f5b300', []],
+    ['Other', '📦', '#8b8d98', []],
   ],
 };
 
@@ -172,8 +172,30 @@ function periodNav() {
   </div>`;
 }
 
+// Monochrome line icons (24×24, stroked via .i).
+const ICONS = {
+  calendar: '<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+  tag: '<path d="M3.5 12.2V5a1.5 1.5 0 0 1 1.5-1.5h7.2a1.5 1.5 0 0 1 1 .44l7.4 7.4a1.5 1.5 0 0 1 0 2.12l-7.2 7.2a1.5 1.5 0 0 1-2.12 0l-7.4-7.4a1.5 1.5 0 0 1-.38-1.06z"/><circle cx="8.5" cy="8.5" r="1.3"/>',
+  target: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.8"/>',
+  repeat: '<path d="M17 2.5 20.5 6 17 9.5"/><path d="M3.5 11.5V10a4 4 0 0 1 4-4h13"/><path d="M7 21.5 3.5 18 7 14.5"/><path d="M20.5 12.5V14a4 4 0 0 1-4 4h-13"/>',
+  lock: '<rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>',
+  file: '<path d="M14 3.5H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-10z"/><path d="M14 3.5v5h5M9 13h6M9 16.5h6"/>',
+  download: '<path d="M12 3.5v11M7.5 10l4.5 4.5 4.5-4.5"/><path d="M4 15.5v2a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-2"/>',
+  upload: '<path d="M12 14.5v-11M7.5 8 12 3.5 16.5 8"/><path d="M4 15.5v2a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-2"/>',
+  trash: '<path d="M4 6.5h16M9.5 6.5V4.5h5v2M6 6.5l1 13a1.5 1.5 0 0 0 1.5 1.4h7a1.5 1.5 0 0 0 1.5-1.4l1-13"/><path d="M10 10.5v6M14 10.5v6"/>',
+  receipt: '<path d="M6 3.5h12v17l-2.5-1.5-2 1.5-1.5-1.2-1.5 1.2-2-1.5L6 20.5z"/><path d="M9 8h6M9 11.5h6M9 15h3.5"/>',
+  wallet: '<rect x="3.5" y="6" width="17" height="13" rx="3"/><path d="M3.5 10h17M16 14.5h1.5"/><path d="M6 6l9.5-2.5a1.5 1.5 0 0 1 1.9 1.2L17.5 6"/>',
+  chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+};
+const svg = name => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`;
+
 const header = (title, extra = '') => `<header class="top"><h1>${title}</h1>${extra}</header>`;
-const empty = (emoji, text) => `<div class="empty"><div class="empty-ico">${emoji}</div><p>${text}</p></div>`;
+const empty = (ico, text) => `<div class="empty"><div class="empty-ico">${svg(ico)}</div><p>${text}</p></div>`;
+/** Currency with the cents de-emphasised, e.g. €1,509<small>.01</small>. */
+const moneySplit = cents => {
+  const s = money(cents), i = s.lastIndexOf('.');
+  return i < 0 ? esc(s) : `${esc(s.slice(0, i))}<small>${esc(s.slice(i))}</small>`;
+};
 
 function viewOverview() {
   const p = currentPeriod();
@@ -209,7 +231,7 @@ function viewOverview() {
   return header('Overview') + periodNav() + `
     <section class="card hero">
       <div class="hero-label">Balance</div>
-      <div class="hero-value">${t.balance < 0 ? '−' : ''}${money(Math.abs(t.balance))}</div>
+      <div class="hero-value">${t.balance < 0 ? '−' : ''}${moneySplit(Math.abs(t.balance))}</div>
       <div class="hero-row">
         <div><span class="dot income"></span>Income<b>${money(t.income)}</b></div>
         <div><span class="dot expense"></span>Expenses<b>${money(t.expense)}</b></div>
@@ -222,7 +244,7 @@ function viewOverview() {
       ${groups.length
         ? donut(groups.map(g => ({ value: g.total, color: safeColor(g.cat.color) })), typeTotal, money(typeTotal), type === 'income' ? 'income' : 'spent')
           + `<ul class="legend">${legend}</ul>`
-        : empty(type === 'income' ? '💶' : '🧾', `No ${type === 'income' ? 'income' : 'expenses'} in this period yet.`)}
+        : empty(type === 'income' ? 'wallet' : 'receipt', `No ${type === 'income' ? 'income' : 'expenses'} in this period yet.`)}
     </section>
 
     <section class="card">
@@ -259,7 +281,7 @@ function viewTransactions() {
 
   return header('Transactions') + periodNav()
     + seg('txFilter', [['all', 'All'], ['expense', 'Expenses'], ['income', 'Income']], f)
-    + (days || empty('📝', 'No transactions in this period.<br>Tap <b>+</b> to add one.'));
+    + (days || empty('receipt', 'No transactions in this period.<br>Tap <b>+</b> to add one.'));
 }
 
 function viewBreakdown() {
@@ -288,11 +310,11 @@ function viewBreakdown() {
   return header('Breakdown') + periodNav()
     + seg('breakdownType', [['expense', 'Expenses'], ['income', 'Income']], type)
     + `<div class="total-line"><span>Total ${type === 'income' ? 'income' : 'expenses'}</span><b class="${type}">${money(total)}</b></div>`
-    + (rows ? `<div class="list">${rows}</div>` : empty('📊', 'Nothing to break down yet.'));
+    + (rows ? `<div class="list">${rows}</div>` : empty('chart', 'Nothing to break down yet.'));
 }
 
-function settingsRow(action, emoji, color, title, subtitle = '') {
-  return `<button class="row" data-action="${action}">${icon({ icon: emoji, color })}
+function settingsRow(action, ico, title, subtitle = '', cls = '') {
+  return `<button class="row ${cls}" data-action="${action}"><span class="ico line">${svg(ico)}</span>
     <span class="main"><span class="t1">${title}</span>${subtitle ? `<span class="t2">${subtitle}</span>` : ''}</span><span class="chev">›</span></button>`;
 }
 
@@ -303,19 +325,19 @@ function viewSettings() {
   return header('Settings') + `
     <div class="group-title">Organize</div>
     <div class="list">
-      ${settingsRow('periods', '📅', '#ff9500', 'Pay periods', state.periods.length ? `Current: ${esc(p?.range || '')}` : 'Using calendar months')}
-      ${settingsRow('categories', '🏷️', '#5e5ce6', 'Categories', `${nCats} categories & subcategories`)}
-      ${settingsRow('budgets', '🎯', '#34c759', 'Budgets', state.budgets.length ? `${state.budgets.length} set` : 'None set')}
-      ${settingsRow('recurring', '🔁', '#30b0c7', 'Recurring', state.recurring.length ? `${state.recurring.length} active` : 'None')}
+      ${settingsRow('periods', 'calendar', 'Pay periods', state.periods.length ? `Current: ${esc(p?.range || '')}` : 'Using calendar months')}
+      ${settingsRow('categories', 'tag', 'Categories', `${nCats} categories & subcategories`)}
+      ${settingsRow('budgets', 'target', 'Budgets', state.budgets.length ? `${state.budgets.length} set` : 'None set')}
+      ${settingsRow('recurring', 'repeat', 'Recurring', state.recurring.length ? `${state.recurring.length} active` : 'None')}
     </div>
     <div class="group-title">Security</div>
-    <div class="list">${settingsRow('security', '🔒', '#ff3b30', 'App lock', lockOn ? (state.settings.credId ? 'Face ID + PIN' : 'PIN') : 'Off')}</div>
+    <div class="list">${settingsRow('security', 'lock', 'App lock', lockOn ? (state.settings.credId ? 'Face ID + PIN' : 'PIN') : 'Off')}</div>
     <div class="group-title">Data</div>
     <div class="list">
-      ${settingsRow('export-csv', '📄', '#007aff', 'Export CSV', 'Open in Excel / Numbers')}
-      ${settingsRow('backup', '💾', '#af52de', 'Back up', 'Save a JSON backup file')}
-      ${settingsRow('restore', '♻️', '#00c7be', 'Restore', 'Load a JSON backup file')}
-      ${settingsRow('reset', '🗑️', '#8e8e93', 'Erase all data')}
+      ${settingsRow('export-csv', 'file', 'Export CSV', 'Open in Excel / Numbers')}
+      ${settingsRow('backup', 'download', 'Back up', 'Save a JSON backup file')}
+      ${settingsRow('restore', 'upload', 'Restore', 'Load a JSON backup file')}
+      ${settingsRow('reset', 'trash', 'Erase all data', '', 'danger')}
     </div>
     <p class="hint center">Everything is stored only on this device.<br>Back up regularly — removing the app erases its data.</p>`;
 }
@@ -493,7 +515,7 @@ function categorySheet(cat, { type, parentId = null, onSaved } = {}) {
       </select></label>`}
     </div>
     <div class="field-label">Color</div>
-    <div class="swatches">${COLORS.map(col => `<button type="button" class="swatch ${col === color ? 'on' : ''}" data-color="${col}" style="--c:${col}" aria-label="${col}"></button>`).join('')}</div>
+    <div class="swatches">${(COLORS.includes(color) ? COLORS : [color, ...COLORS]).map(col => `<button type="button" class="swatch ${col === color ? 'on' : ''}" data-color="${col}" style="--c:${col}" aria-label="${col}"></button>`).join('')}</div>
     <p class="hint">Tip: tap the icon field and switch to the emoji keyboard 🌐.</p>
     ${cat ? '<button type="button" class="btn danger" id="c-delete">Delete category</button>' : ''}`;
 
@@ -596,9 +618,9 @@ function periodsSheet() {
         const manual = periods.filter(p => p.manual).reverse();
         list.innerHTML = manual.length ? `<div class="list">${manual.map(p => {
           const rec = state.periods.find(x => x.start === p.start);
-          return `<button type="button" class="row" data-id="${esc(rec.id)}">${icon({ icon: '📅', color: p.end ? '#8e8e93' : '#ff9500' })}
+          return `<button type="button" class="row" data-id="${esc(rec.id)}"><span class="ico line"${p.end ? '' : ' style="color:var(--accent)"'}>${svg('calendar')}</span>
             <span class="main"><span class="t1">${esc(p.title)}</span><span class="t2">${esc(p.range)}</span></span><span class="chev">›</span></button>`;
-        }).join('')}</div>` : empty('📅', 'No pay periods yet — using calendar months.');
+        }).join('')}</div>` : empty('calendar', 'No pay periods yet — using calendar months.');
       };
       draw();
       list.addEventListener('click', e => {
@@ -677,7 +699,7 @@ function recurringSheet() {
           return `<button type="button" class="row" data-id="${esc(r.id)}">${icon(c)}
             <span class="main"><span class="t1">${esc(r.note || c.name)}</span><span class="t2">${freq} · next ${esc(P.fmtDay(r.nextDate))}</span></span>
             <span class="amt ${r.type}">${signed(r.amount, r.type)}</span></button>`;
-        }).join('')}</div>` : empty('🔁', 'Add rent, subscriptions or salary to have them entered automatically.');
+        }).join('')}</div>` : empty('repeat', 'Add rent, subscriptions or salary to have them entered automatically.');
       };
       draw();
       list.addEventListener('click', e => {

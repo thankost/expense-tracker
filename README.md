@@ -57,7 +57,7 @@ npm test            # unit tests (period math, CSV)
 index.html              app shell + tab bar
 manifest.webmanifest    PWA manifest
 sw.js                   offline cache (bump VERSION on changes)
-css/styles.css          iOS-style design, light/dark
+css/styles.css          design tokens, light/dark
 js/app.js               UI, screens, sheets, logic
 js/db.js                IndexedDB storage
 js/periods.js           pay period & date math
