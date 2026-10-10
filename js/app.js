@@ -1,6 +1,7 @@
 import * as db from './db.js';
 import * as P from './periods.js';
-import { donut, bars } from './charts.js';
+import { donut, bars, spendCurve } from './charts.js';
+import { CAT_ICONS, UI_ICONS, EMOJI_ICONS } from './icons.js';
 import * as lock from './lock.js';
 import { toCSV, shareOrDownload } from './export.js';
 
@@ -8,18 +9,18 @@ const LOCK_AFTER_MS = 60_000;
 const COLORS = ['#e5484d', '#f76b15', '#f5b300', '#30a46c', '#12a594', '#0d9fbf', '#0090ff', '#3e63dd', '#8e4ec6', '#d6409f', '#ad7f58', '#8b8d98'];
 const DEFAULT_CATEGORIES = {
   income: [
-    ['Salary', '💼', '#30a46c', []],
-    ['Bonus', '🎁', '#0d9fbf', []],
-    ['Other income', '💰', '#12a594', []],
+    ['Salary', 'briefcase', '#30a46c', []],
+    ['Bonus', 'gift', '#0d9fbf', []],
+    ['Other income', 'piggy-bank', '#12a594', []],
   ],
   expense: [
-    ['Home', '🏠', '#3e63dd', [['Rent', '🔑'], ['Utilities', '💡']]],
-    ['Food', '🍽️', '#f76b15', [['Groceries', '🛒'], ['Restaurants', '🍔']]],
-    ['Transport', '🚗', '#0090ff', [['Fuel', '⛽'], ['Public transport', '🚌']]],
-    ['Health', '🩺', '#d6409f', []],
-    ['Entertainment', '🎬', '#8e4ec6', []],
-    ['Shopping', '🛍️', '#f5b300', []],
-    ['Other', '📦', '#8b8d98', []],
+    ['Home', 'house', '#3e63dd', [['Rent', 'key-round'], ['Utilities', 'lightbulb']]],
+    ['Food', 'utensils', '#f76b15', [['Groceries', 'shopping-cart'], ['Restaurants', 'hamburger']]],
+    ['Transport', 'car', '#0090ff', [['Fuel', 'fuel'], ['Public transport', 'bus']]],
+    ['Health', 'stethoscope', '#d6409f', []],
+    ['Entertainment', 'clapperboard', '#8e4ec6', []],
+    ['Shopping', 'shopping-bag', '#f5b300', []],
+    ['Other', 'package', '#8b8d98', []],
   ],
 };
 
@@ -39,12 +40,6 @@ const eur = new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR' 
 const money = cents => eur.format(cents / 100);
 const signed = (cents, type) => (type === 'income' ? '+' : '−') + money(cents);
 const pct = (v, total) => (total ? Math.round((v / total) * 100) : 0);
-const firstGrapheme = s => {
-  s = String(s || '').trim();
-  if (!s) return '';
-  if (window.Intl?.Segmenter) return new Intl.Segmenter().segment(s)[Symbol.iterator]().next().value.segment;
-  return Array.from(s)[0];
-};
 
 function parseAmount(str) {
   const v = parseFloat(String(str).replace(/\s|€/g, '').replace(',', '.'));
@@ -89,7 +84,7 @@ const catById = id => state.categories.find(c => c.id === id);
 const topCats = type => state.categories.filter(c => c.type === type && !c.parentId).sort(byOrder);
 const subCats = parentId => state.categories.filter(c => c.parentId === parentId).sort(byOrder);
 const rootOf = c => (c?.parentId ? catById(c.parentId) || c : c);
-const UNCATEGORIZED = { id: '_none', name: 'Uncategorized', icon: '❔', color: '#8e8e93' };
+const UNCATEGORIZED = { id: '_none', name: 'Uncategorized', icon: 'circle-help', color: '#8b8d98' };
 
 function catLabel(categoryId) {
   const c = catById(categoryId);
@@ -155,7 +150,7 @@ function groupByCategory(list, type) {
 }
 
 // ---------- rendering ----------
-const icon = (c, cls = '') => `<span class="ico ${cls}" style="--c:${safeColor(c.color)}">${esc(c.icon || '🏷️')}</span>`;
+const icon = (c, cls = '') => `<span class="ico ${cls}" style="--c:${safeColor(c.color)}">${glyph(c.icon)}</span>`;
 const seg = (name, options, value) => `<div class="seg" data-seg="${name}">${options.map(([v, l]) =>
   `<button type="button" class="${v === value ? 'on' : ''}" data-value="${v}">${l}</button>`).join('')}</div>`;
 
@@ -172,22 +167,16 @@ function periodNav() {
   </div>`;
 }
 
-// Monochrome line icons (24×24, stroked via .i).
-const ICONS = {
-  calendar: '<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
-  tag: '<path d="M3.5 12.2V5a1.5 1.5 0 0 1 1.5-1.5h7.2a1.5 1.5 0 0 1 1 .44l7.4 7.4a1.5 1.5 0 0 1 0 2.12l-7.2 7.2a1.5 1.5 0 0 1-2.12 0l-7.4-7.4a1.5 1.5 0 0 1-.38-1.06z"/><circle cx="8.5" cy="8.5" r="1.3"/>',
-  target: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.8"/>',
-  repeat: '<path d="M17 2.5 20.5 6 17 9.5"/><path d="M3.5 11.5V10a4 4 0 0 1 4-4h13"/><path d="M7 21.5 3.5 18 7 14.5"/><path d="M20.5 12.5V14a4 4 0 0 1-4 4h-13"/>',
-  lock: '<rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>',
-  file: '<path d="M14 3.5H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-10z"/><path d="M14 3.5v5h5M9 13h6M9 16.5h6"/>',
-  download: '<path d="M12 3.5v11M7.5 10l4.5 4.5 4.5-4.5"/><path d="M4 15.5v2a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-2"/>',
-  upload: '<path d="M12 14.5v-11M7.5 8 12 3.5 16.5 8"/><path d="M4 15.5v2a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-2"/>',
-  trash: '<path d="M4 6.5h16M9.5 6.5V4.5h5v2M6 6.5l1 13a1.5 1.5 0 0 0 1.5 1.4h7a1.5 1.5 0 0 0 1.5-1.4l1-13"/><path d="M10 10.5v6M14 10.5v6"/>',
-  receipt: '<path d="M6 3.5h12v17l-2.5-1.5-2 1.5-1.5-1.2-1.5 1.2-2-1.5L6 20.5z"/><path d="M9 8h6M9 11.5h6M9 15h3.5"/>',
-  wallet: '<rect x="3.5" y="6" width="17" height="13" rx="3"/><path d="M3.5 10h17M16 14.5h1.5"/><path d="M6 6l9.5-2.5a1.5 1.5 0 0 1 1.9 1.2L17.5 6"/>',
-  chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+const svgWrap = body => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${body}</svg>`;
+const svg = name => svgWrap(UI_ICONS[name] || CAT_ICONS[name] || '');
+// Category icons are stored as Lucide keys; older data may hold an emoji, which maps to a key when known.
+const stripVS = v => String(v || '').replace(/\uFE0F/g, '');
+const EMOJI_KEYS = Object.fromEntries(Object.entries(EMOJI_ICONS).map(([k, v]) => [stripVS(k), v]));
+const iconKey = v => (Object.hasOwn(CAT_ICONS, v) ? v : Object.hasOwn(EMOJI_KEYS, stripVS(v)) ? EMOJI_KEYS[stripVS(v)] : null);
+const glyph = v => {
+  const k = iconKey(v || 'tag');
+  return k ? svgWrap(CAT_ICONS[k]) : `<span class="emo">${esc(v)}</span>`;
 };
-const svg = name => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`;
 
 const header = (title, extra = '') => `<header class="top"><h1>${title}</h1>${extra}</header>`;
 const empty = (ico, text) => `<div class="empty"><div class="empty-ico">${svg(ico)}</div><p>${text}</p></div>`;
@@ -197,16 +186,77 @@ const moneySplit = cents => {
   return i < 0 ? esc(s) : `${esc(s.slice(0, i))}<small>${esc(s.slice(i))}</small>`;
 };
 
+const dayDiff = (a, b) => Math.round((P.parseISO(b) - P.parseISO(a)) / 864e5);
+
+/** Cumulative expense per day of a period, for the first `n` days. */
+function cumulativeSpend(p, n) {
+  const daily = new Array(Math.max(n, 0)).fill(0);
+  for (const t of txIn(p)) {
+    const d = dayDiff(p.start, t.date);
+    if (t.type === 'expense' && d >= 0 && d < n) daily[d] += t.amount;
+  }
+  let run = 0;
+  return daily.map(v => (run += v));
+}
+
+const periodDays = p => dayDiff(p.start, p.end || P.addDays(p.start, 30)) + 1;
+
+function greeting() {
+  const h = new Date().getHours();
+  return h < 5 ? 'Good night' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+}
+
+function txRow(t) {
+  const { root, sub } = catLabel(t.categoryId);
+  const c = sub || root;
+  const subtitle = [sub ? root.name : '', t.note, t.recurringId ? '↻ recurring' : ''].filter(Boolean).map(esc).join(' · ');
+  return `<button class="row" data-action="edit-tx" data-id="${esc(t.id)}">${icon(c)}
+    <span class="main"><span class="t1">${esc(c.name)}</span>${subtitle ? `<span class="t2">${subtitle}</span>` : ''}</span>
+    <span class="amt ${t.type}">${signed(t.amount, t.type)}</span></button>`;
+}
+
+// Data behind the tappable overview charts (rebuilt on every render).
+let overviewData = { slices: [], trend: [] };
+
+function trendSummary(d) {
+  const net = d.income - d.expense;
+  return `<div><span><i class="dot income"></i>Income</span><b>${money(d.income)}</b></div>
+    <div><span><i class="dot expense"></i>Spent</span><b>${money(d.expense)}</b></div>
+    <div><span>${net >= 0 ? 'Saved' : 'Overspent'}</span><b>${money(Math.abs(net))}</b></div>`;
+}
+
+function heroCurve(p, i) {
+  const days = periodDays(p);
+  const today = P.todayISO();
+  if (today < p.start) return '';
+  const upto = Math.min(days, dayDiff(p.start, today) + 1);
+  const cur = cumulativeSpend(p, upto);
+  const prevP = periods[i - 1];
+  const prev = prevP ? cumulativeSpend(prevP, Math.min(days, periodDays(prevP))) : [];
+  const spent = cur.at(-1) || 0;
+  let caption = `${money(spent)} spent`;
+  if (prev.length && upto < days) {
+    const then = prev[Math.min(upto, prev.length) - 1] || 0;
+    const diff = spent - then;
+    caption += diff <= 0 ? ` · <span class="good">${money(-diff)} less</span> than last period by now` : ` · ${money(diff)} more than last period by now`;
+  } else if (prev.length) {
+    const diff = spent - prev.at(-1);
+    caption += diff <= 0 ? ` · <span class="good">${money(-diff)} less</span> than last period` : ` · ${money(diff)} more than last period`;
+  }
+  return `<div class="hero-curve">${spendCurve(cur, prev, days)}</div><div class="hero-cap">${caption}</div>`;
+}
+
 function viewOverview() {
   const p = currentPeriod();
+  const i = currentIndex();
   const list = txIn(p);
   const t = totals(list);
   const type = state.ui.overviewType;
   const groups = groupByCategory(list, type);
   const typeTotal = type === 'income' ? t.income : t.expense;
 
-  const i = currentIndex();
-  const hist = periods.slice(Math.max(0, i - 5), i + 1).map(pp => ({ label: pp.short, ...totals(txIn(pp)) }));
+  const trend = periods.slice(Math.max(0, i - 5), i + 1).map(pp => ({ label: pp.short, title: pp.title, ...totals(txIn(pp)) }));
+  overviewData = { slices: groups.map(g => ({ ...g, pct: pct(g.total, typeTotal) })), trend };
 
   const budgetRows = state.budgets
     .map(b => ({ b, cat: catById(b.categoryId) }))
@@ -225,35 +275,65 @@ function viewOverview() {
       </div>`;
     }).join('');
 
-  const legend = groups.map(g => `<li>${icon(g.cat, 'sm')}<span class="grow">${esc(g.cat.name)}</span>
+  const legend = groups.map((g, gi) => `<li data-action="slice" data-i="${gi}">${icon(g.cat, 'sm')}<span class="grow">${esc(g.cat.name)}</span>
       <span class="muted">${pct(g.total, typeTotal)}%</span><span class="amt">${money(g.total)}</span></li>`).join('');
 
-  return header('Overview') + periodNav() + `
+  const recent = [...list].sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 4);
+
+  return `<header class="top"><p class="eyebrow">${greeting()}</p><h1>Overview</h1></header>` + periodNav() + `
     <section class="card hero">
       <div class="hero-label">Balance</div>
       <div class="hero-value">${t.balance < 0 ? '−' : ''}${moneySplit(Math.abs(t.balance))}</div>
       <div class="hero-row">
         <div><span class="dot income"></span>Income<b>${money(t.income)}</b></div>
-        <div><span class="dot expense"></span>Expenses<b>${money(t.expense)}</b></div>
+        <div><span class="dot expense"></span>Spent<b>${money(t.expense)}</b></div>
       </div>
-      ${t.income ? `<div class="hero-foot">${t.balance >= 0 ? `You saved ${pct(t.balance, t.income)}% of your income` : `You spent ${pct(-t.balance, t.income)}% more than you earned`}</div>` : ''}
+      ${p ? heroCurve(p, i) : ''}
     </section>
 
-    <section class="card">
-      <div class="card-head"><h2>By category</h2>${seg('overviewType', [['expense', 'Expenses'], ['income', 'Income']], type)}</div>
+    <section class="card" id="cat-card">
+      <div class="card-head"><h2>Where it went</h2>${seg('overviewType', [['expense', 'Spent'], ['income', 'Earned']], type)}</div>
       ${groups.length
-        ? donut(groups.map(g => ({ value: g.total, color: safeColor(g.cat.color) })), typeTotal, money(typeTotal), type === 'income' ? 'income' : 'spent')
+        ? donut(groups.map(g => ({ value: g.total, color: safeColor(g.cat.color) })), typeTotal, money(typeTotal), type === 'income' ? 'earned' : 'spent')
           + `<ul class="legend">${legend}</ul>`
-        : empty(type === 'income' ? 'wallet' : 'receipt', `No ${type === 'income' ? 'income' : 'expenses'} in this period yet.`)}
+        : empty(type === 'income' ? 'wallet' : 'receipt', `No ${type === 'income' ? 'income' : 'spending'} in this period yet.`)}
     </section>
 
-    <section class="card">
-      <div class="card-head"><h2>Income vs expenses</h2></div>
-      ${bars(hist)}
-      <div class="bars-legend"><span><i class="dot income"></i>Income</span><span><i class="dot expense"></i>Expenses</span></div>
-    </section>
+    ${recent.length ? `<section class="card flush">
+      <div class="card-head"><h2>Recent</h2><button class="see-all" data-action="tab" data-tab="transactions">See all</button></div>
+      <div class="rows">${recent.map(txRow).join('')}</div>
+    </section>` : ''}
 
-    ${budgetRows ? `<section class="card"><div class="card-head"><h2>Budgets</h2></div>${budgetRows}</section>` : ''}`;
+    ${budgetRows ? `<section class="card"><div class="card-head"><h2>Budgets</h2></div>${budgetRows}</section>` : ''}
+
+    <section class="card" id="trend-card">
+      <div class="card-head"><h2>Monthly trend</h2><span class="muted trend-title">${esc(trend.at(-1)?.title || '')}</span></div>
+      ${bars(trend)}
+      <div class="trend-sum">${trend.length ? trendSummary(trend.at(-1)) : ''}</div>
+    </section>`;
+}
+
+function selectSlice(i) {
+  const card = $('#cat-card');
+  if (!card) return;
+  const sel = i < 0 || String(i) === card.dataset.sel ? -1 : i;
+  card.dataset.sel = sel;
+  card.classList.toggle('has-sel', sel >= 0);
+  card.querySelectorAll('.arc, .legend li').forEach(x => x.classList.toggle('on', Number(x.dataset.i) === sel));
+  const d = overviewData.slices[sel];
+  $('.dc-default', card).hidden = !!d;
+  const box = $('.dc-sel', card);
+  box.hidden = !d;
+  box.innerHTML = d ? `${icon(d.cat, 'sm')}<span class="dc-top">${money(d.total)}</span><span class="dc-bottom">${esc(d.cat.name)} · ${d.pct}%</span>` : '';
+}
+
+function selectBar(i) {
+  const card = $('#trend-card');
+  const d = overviewData.trend[i];
+  if (!card || !d) return;
+  card.querySelectorAll('.bar-g').forEach(g => g.classList.toggle('on', Number(g.dataset.i) === i));
+  $('.trend-title', card).textContent = d.title;
+  $('.trend-sum', card).innerHTML = trendSummary(d);
 }
 
 function viewTransactions() {
@@ -269,14 +349,7 @@ function viewTransactions() {
     const net = totals(items).balance;
     const label = date === today ? 'Today' : date === yesterday ? 'Yesterday' : P.fmtDayLong(date);
     return `<div class="day"><div class="day-head"><span>${label}</span><span>${net >= 0 ? '+' : '−'}${money(Math.abs(net))}</span></div>
-      <div class="list">${items.map(t => {
-        const { root, sub } = catLabel(t.categoryId);
-        const c = sub || root;
-        const subtitle = [sub ? root.name : '', t.note, t.recurringId ? '↻ recurring' : ''].filter(Boolean).map(esc).join(' · ');
-        return `<button class="row" data-action="edit-tx" data-id="${esc(t.id)}">${icon(c)}
-          <span class="main"><span class="t1">${esc(c.name)}</span>${subtitle ? `<span class="t2">${subtitle}</span>` : ''}</span>
-          <span class="amt ${t.type}">${signed(t.amount, t.type)}</span></button>`;
-      }).join('')}</div></div>`;
+      <div class="list">${items.map(txRow).join('')}</div></div>`;
   }).join('');
 
   return header('Transactions') + periodNav()
@@ -295,7 +368,7 @@ function viewBreakdown() {
     const subs = [...g.subs.entries()].sort((a, b) => b[1].total - a[1].total);
     const hasSubs = subs.some(([k]) => k !== '_direct');
     const inner = hasSubs ? subs.map(([k, s]) => `<div class="sub-row">
-        <span class="grow">${k === '_direct' ? `<i class="muted">No subcategory</i>` : `${esc(s.cat.icon || '')} ${esc(s.cat.name)}`}</span>
+        <span class="grow sub-name">${k === '_direct' ? `<i class="muted">No subcategory</i>` : `${icon(s.cat, 'xs')}${esc(s.cat.name)}`}</span>
         <span class="muted">${pct(s.total, g.total)}%</span><span class="amt">${money(s.total)}</span></div>`).join('') : '';
     const open = state.ui.open.has(g.cat.id) ? 'open' : '';
     const headRow = `${icon(g.cat)}
@@ -310,7 +383,7 @@ function viewBreakdown() {
   return header('Breakdown') + periodNav()
     + seg('breakdownType', [['expense', 'Expenses'], ['income', 'Income']], type)
     + `<div class="total-line"><span>Total ${type === 'income' ? 'income' : 'expenses'}</span><b class="${type}">${money(total)}</b></div>`
-    + (rows ? `<div class="list">${rows}</div>` : empty('chart', 'Nothing to break down yet.'));
+    + (rows ? `<div class="list">${rows}</div>` : empty('chart-column', 'Nothing to break down yet.'));
 }
 
 function settingsRow(action, ico, title, subtitle = '', cls = '') {
@@ -334,10 +407,10 @@ function viewSettings() {
     <div class="list">${settingsRow('security', 'lock', 'App lock', lockOn ? (state.settings.credId ? 'Face ID + PIN' : 'PIN') : 'Off')}</div>
     <div class="group-title">Data</div>
     <div class="list">
-      ${settingsRow('export-csv', 'file', 'Export CSV', 'Open in Excel / Numbers')}
+      ${settingsRow('export-csv', 'file-text', 'Export CSV', 'Open in Excel / Numbers')}
       ${settingsRow('backup', 'download', 'Back up', 'Save a JSON backup file')}
       ${settingsRow('restore', 'upload', 'Restore', 'Load a JSON backup file')}
-      ${settingsRow('reset', 'trash', 'Erase all data', '', 'danger')}
+      ${settingsRow('reset', 'trash-2', 'Erase all data', '', 'danger')}
     </div>
     <p class="hint center">Everything is stored only on this device.<br>Back up regularly — removing the app erases its data.</p>`;
 }
@@ -437,7 +510,7 @@ function txSheet(item = null, { recurring = false, onSaved, type: initialType } 
     onMount(el, close) {
       const catsEl = $('#f-cats', el), subsEl = $('#f-subs', el), subWrap = $('#f-subwrap', el);
       const chip = (c, on, kind) => `<button type="button" class="chip ${on ? 'on' : ''}" data-${kind}="${esc(c.id)}" style="--c:${safeColor(c.color)}">
-        <span>${esc(c.icon || '🏷️')}</span>${esc(c.name)}</button>`;
+        <span class="chip-ico">${glyph(c.icon)}</span>${esc(c.name)}</button>`;
       const drawChips = () => {
         catsEl.innerHTML = topCats(type).map(c => chip(c, c.id === catId, 'cat')).join('')
           + '<button type="button" class="chip add" data-new="cat">＋ New</button>';
@@ -500,23 +573,26 @@ function txSheet(item = null, { recurring = false, onSaved, type: initialType } 
 
 function categorySheet(cat, { type, parentId = null, onSaved } = {}) {
   const parent = parentId ? catById(parentId) : null;
-  const c = cat || { type, parentId, name: '', icon: parent?.icon || '🏷️', color: parent?.color || COLORS[state.categories.length % COLORS.length] };
+  const c = cat || { type, parentId, name: '', icon: parent?.icon || 'tag', color: parent?.color || COLORS[state.categories.length % COLORS.length] };
   const hasChildren = cat && subCats(cat.id).length > 0;
   let color = c.color;
   const parents = topCats(c.type).filter(p => p.id !== c.id);
+  // Keep an unmapped custom emoji selectable so saving doesn't silently replace it.
+  let picked = iconKey(c.icon) || c.icon || 'tag';
+  const iconChoices = Object.hasOwn(CAT_ICONS, picked) ? Object.keys(CAT_ICONS) : [picked, ...Object.keys(CAT_ICONS)];
 
   const html = `
     <div class="form">
       <label class="field"><span>Name</span><input id="c-name" maxlength="40" placeholder="e.g. Groceries" value="${esc(c.name)}"></label>
-      <label class="field"><span>Icon</span><input id="c-icon" class="emoji-input" placeholder="🏷️" value="${esc(c.icon)}"></label>
       ${hasChildren ? '' : `<label class="field"><span>Inside</span><select id="c-parent">
         <option value="">— Main category —</option>
-        ${parents.map(p => `<option value="${esc(p.id)}" ${p.id === c.parentId ? 'selected' : ''}>${esc(p.icon)} ${esc(p.name)}</option>`).join('')}
+        ${parents.map(p => `<option value="${esc(p.id)}" ${p.id === c.parentId ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}
       </select></label>`}
     </div>
     <div class="field-label">Color</div>
     <div class="swatches">${(COLORS.includes(color) ? COLORS : [color, ...COLORS]).map(col => `<button type="button" class="swatch ${col === color ? 'on' : ''}" data-color="${col}" style="--c:${col}" aria-label="${col}"></button>`).join('')}</div>
-    <p class="hint">Tip: tap the icon field and switch to the emoji keyboard 🌐.</p>
+    <div class="field-label">Icon</div>
+    <div class="icon-grid" style="--c:${safeColor(color)}">${iconChoices.map(v => `<button type="button" class="icon-opt ${v === picked ? 'on' : ''}" data-icon="${esc(v)}" aria-label="${esc(v)}">${glyph(v)}</button>`).join('')}</div>
     ${cat ? '<button type="button" class="btn danger" id="c-delete">Delete category</button>' : ''}`;
 
   sheet(cat ? 'Edit category' : (parentId ? 'New subcategory' : 'New category'), html, {
@@ -526,6 +602,13 @@ function categorySheet(cat, { type, parentId = null, onSaved } = {}) {
         if (!b) return;
         color = b.dataset.color;
         el.querySelectorAll('.swatch').forEach(s => s.classList.toggle('on', s === b));
+        el.querySelector('.icon-grid').style.setProperty('--c', safeColor(color));
+      });
+      el.querySelector('.icon-grid').addEventListener('click', e => {
+        const b = e.target.closest('.icon-opt');
+        if (!b) return;
+        picked = b.dataset.icon;
+        el.querySelectorAll('.icon-opt').forEach(x => x.classList.toggle('on', x === b));
       });
       $('#c-delete', el)?.addEventListener('click', async () => {
         if (await deleteCategory(cat)) {
@@ -541,7 +624,7 @@ function categorySheet(cat, { type, parentId = null, onSaved } = {}) {
       const pid = hasChildren ? null : ($('#c-parent', el).value || null);
       const dup = state.categories.some(x => x.id !== c.id && x.type === c.type && (x.parentId || null) === pid && x.name.toLowerCase() === name.toLowerCase());
       if (dup) throw new Error('A category with this name already exists here');
-      const obj = { ...c, id: c.id || db.uid(), name, icon: firstGrapheme($('#c-icon', el).value) || '🏷️', color, parentId: pid, order: c.order ?? Date.now() };
+      const obj = { ...c, id: c.id || db.uid(), name, icon: picked, color, parentId: pid, order: c.order ?? Date.now() };
       await save('categories', obj);
       if (pid) {
         const b = state.budgets.find(x => x.categoryId === obj.id);
@@ -665,7 +748,7 @@ function budgetsSheet() {
     <p class="hint">Set a spending limit per pay period for each category. Leave empty for no budget.</p>
     <div class="form">${cats.map(c => {
       const b = state.budgets.find(x => x.categoryId === c.id);
-      return `<label class="field"><span>${esc(c.icon)} ${esc(c.name)}</span>
+      return `<label class="field"><span class="field-cat">${icon(c, 'xs')}${esc(c.name)}</span>
         <input inputmode="decimal" data-bud="${esc(c.id)}" placeholder="—" value="${b ? (b.amount / 100).toFixed(2) : ''}"></label>`;
     }).join('')}</div>`, {
     async onSave(el) {
@@ -947,6 +1030,8 @@ const ACTIONS = {
   'prev-period': () => { state.ui.periodIdx = currentIndex() - 1; render(); },
   'next-period': () => { state.ui.periodIdx = currentIndex() + 1; render(); },
   'today-period': () => { state.ui.periodIdx = null; render(); },
+  slice: b => selectSlice(Number(b.dataset.i)),
+  bar: b => selectBar(Number(b.dataset.i)),
   'edit-tx': b => txSheet(state.transactions.find(t => t.id === b.dataset.id)),
   periods: periodsSheet,
   categories: categoriesSheet,

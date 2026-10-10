@@ -61,7 +61,8 @@ css/styles.css          design tokens, light/dark
 js/app.js               UI, screens, sheets, logic
 js/db.js                IndexedDB storage
 js/periods.js           pay period & date math
-js/charts.js            SVG donut & bar charts
+js/charts.js            SVG donut, bar & spending-curve charts
+js/icons.js             Lucide line icons (ISC)
 js/lock.js              PIN + Face ID (WebAuthn)
 js/export.js            CSV / share helpers
 icons/                  app icons

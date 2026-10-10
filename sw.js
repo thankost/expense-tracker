@@ -1,5 +1,5 @@
 // Bump VERSION whenever you change any app file so phones pick up the update.
-const VERSION = 'v2';
+const VERSION = 'v3';
 const CACHE = `expenses-${VERSION}`;
 const ASSETS = [
   './',
@@ -10,6 +10,7 @@ const ASSETS = [
   'js/db.js',
   'js/periods.js',
   'js/charts.js',
+  'js/icons.js',
   'js/lock.js',
   'js/export.js',
   'icons/icon-180.png',
