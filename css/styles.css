@@ -108,6 +108,15 @@ svg.i { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-widt
     var(--hero-bg);
   border-color: rgba(255, 255, 255, 0.06);
 }
+.save-ring {
+  position: absolute; top: 18px; right: 18px; width: 64px; height: 64px; color: #4cc38a;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.save-ring.over { color: #ff8a8e; }
+.save-ring ~ .hero-label, .save-ring ~ .hero-value { padding-right: 72px; }
+.save-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.save-ring b { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
+.save-ring span { font-size: 9px; color: rgba(255, 255, 255, 0.6); margin-top: 2px; font-weight: 500; }
 .hero-label { color: rgba(255, 255, 255, 0.6); font-size: 13px; font-weight: 500; }
 .hero-value { font-size: 42px; font-weight: 700; letter-spacing: -0.035em; margin: 2px 0 18px; font-variant-numeric: tabular-nums; line-height: 1.1; }
 .hero-value small { font-size: 0.55em; color: rgba(255, 255, 255, 0.5); font-weight: 600; letter-spacing: -0.01em; }

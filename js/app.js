@@ -222,7 +222,24 @@ function trendSummary(d) {
   const net = d.income - d.expense;
   return `<div><span><i class="dot income"></i>Income</span><b>${money(d.income)}</b></div>
     <div><span><i class="dot expense"></i>Spent</span><b>${money(d.expense)}</b></div>
-    <div><span>${net >= 0 ? 'Saved' : 'Overspent'}</span><b>${money(Math.abs(net))}</b></div>`;
+    <div><span>${net >= 0 ? 'Saved' : 'Overspent'}${d.income ? ` · ${pct(Math.abs(net), d.income)}%` : ''}</span><b>${money(Math.abs(net))}</b></div>`;
+}
+
+/** Ring showing the share of income kept (or overspent) this period. */
+function savingsRing(t) {
+  if (!t.income) return '';
+  const rate = t.balance / t.income;
+  const r = 24, C = 2 * Math.PI * r, fill = Math.min(Math.abs(rate), 1) * C;
+  const over = rate < 0;
+  return `<div class="save-ring ${over ? 'over' : ''}" aria-label="${over ? 'Overspent' : 'Saved'} ${pct(Math.abs(t.balance), t.income)}% of income">
+    <svg viewBox="0 0 60 60" aria-hidden="true">
+      <circle cx="30" cy="30" r="${r}" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="6"/>
+      <circle cx="30" cy="30" r="${r}" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"
+        stroke-dasharray="${Math.max(fill, 0.01)} ${C}" transform="rotate(-90 30 30)"/>
+    </svg>
+    <b>${pct(Math.abs(t.balance), t.income)}%</b>
+    <span>${over ? 'overspent' : 'saved'}</span>
+  </div>`;
 }
 
 function heroCurve(p, i) {
@@ -282,6 +299,7 @@ function viewOverview() {
 
   return `<header class="top"><p class="eyebrow">${greeting()}</p><h1>Overview</h1></header>` + periodNav() + `
     <section class="card hero">
+      ${savingsRing(t)}
       <div class="hero-label">Balance</div>
       <div class="hero-value">${t.balance < 0 ? '−' : ''}${moneySplit(Math.abs(t.balance))}</div>
       <div class="hero-row">
